@@ -2,13 +2,7 @@
   "name": "AD&D 2e Fireball Calculator",
   "version": "1.0.0",
   "manifest_version": 1,
-  "icon": "/icon.svg",
+  "icon": "https://maironmajere.github.io/owl-fireball/icon.svg",
   "background_color": "#242424",
-  "action": {
-    "title": "AD&D Fireball",
-    "icon": "/icon.svg",
-    "location": "SELECT",
-    "repository": "https://maironmajere.github.io/owl-fireball/index.html",
-    "popover": "/index.html"
-  }
+  "action": "https://maironmajere.github.io/owl-fireball/index.html"
 }
