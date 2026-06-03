@@ -1,59 +1,15 @@
 const METADATA_KEY = "com.fireball.calculator/3d-map-data";
-const TOOL_ID_WALL = "com.fireball.calculator/tool-wall";
-const TOOL_ID_ZONE = "com.fireball.calculator/tool-zone";
-
 let sceneMetadata = { walls: [], zones: {} };
-let isDrawing = false;
+let currentTool = null;
 
 OBR.onReady(async () => {
-    document.getElementById('status').innerText = "Плагин запущен. Инструменты добавлены в панель.";
+    document.getElementById('status').innerText = "Плагин готов. Выберите режим.";
     await loadMapGeometry();
 
-    // Регистрируем инструмент Кисти для стен в левую панель совы
-    await OBR.tool.create({
-        id: TOOL_ID_WALL,
-        icons: [
-            {
-                icon: "https://maironmajere.github.io/owl-fireball/icon.svg",
-                label: "Стена (Кисть)",
-                sides: ["GM"]
-            }
-        ],
-        async onPointerDown(context, event) {
-            isDrawing = true;
-            await handleWallDraw(event.pointerPosition);
-        },
-        async onPointerMove(context, event) {
-            if (isDrawing) {
-                await handleWallDraw(event.pointerPosition);
-            }
-        },
-        onPointerUp() {
-            isDrawing = false;
-        }
-    });
-
-    // Регистрируем инструмент Зон (Пол / Потолок) в левую панель совы
-    await OBR.tool.create({
-        id: TOOL_ID_ZONE,
-        icons: [
-            {
-                icon: "https://maironmajere.github.io/owl-fireball/icon.svg",
-                label: "Зона (Пол/Потолок)",
-                sides: ["GM"]
-            }
-        ],
-        async onPointerDown(context, event) {
-            await handleZoneDraw(event.pointerPosition);
-        }
-    });
-
-    // Назначаем события на кнопки поповера
     document.getElementById('cast-btn').addEventListener('click', startFireballCast);
     document.getElementById('clear-btn').addEventListener('click', clearAll);
 });
 
-// Загрузка геометрии из метаданных сцены
 async function loadMapGeometry() {
     const meta = await OBR.scene.getMetadata();
     if (meta && meta[METADATA_KEY]) {
@@ -63,7 +19,49 @@ async function loadMapGeometry() {
     }
 }
 
-// Преобразование координат клика в индексы сетки
+function toggleTool(toolName) {
+    if (currentTool === toolName) {
+        currentTool = null;
+    } else {
+        currentTool = toolName;
+    }
+
+    // Обновляем визуальное состояние кнопок
+    document.getElementById('btn-wall').classList.toggle('active', currentTool === 'wall');
+    document.getElementById('btn-zone').classList.toggle('active', currentTool === 'zone');
+    document.getElementById('zone-inputs').style.display = currentTool === 'zone' ? 'block' : 'none';
+
+    if (currentTool) {
+        document.getElementById('status').innerText = `Инструмент [${currentTool}] активен. Выделяйте область на карте.`;
+        startCaptureLoop();
+    } else {
+        document.getElementById('status').innerText = "Режим разметки отключен.";
+    }
+}
+
+// Зацикленный перехват прямоугольных областей с карты Совуха
+async function startCaptureLoop() {
+    while (currentTool !== null) {
+        try {
+            // Используем стандартный выбор области Совуха — это заменяет нам рисование кистью
+            const area = await OBR.interaction.selectArea({
+                hint: `Зажмите ЛКМ и протяните область, чтобы разметить [${currentTool}]`
+            });
+
+            if (!area || area.length < 2) {
+                toggleTool(null);
+                break;
+            }
+
+            await processAreaDraw(area[0], area[1]);
+        } catch (e) {
+            console.error(e);
+            toggleTool(null);
+            break;
+        }
+    }
+}
+
 async function getGridCoords(pos) {
     const dpi = await OBR.scene.grid.getDpi();
     return {
@@ -72,41 +70,39 @@ async function getGridCoords(pos) {
     };
 }
 
-// Рисование стен кистью (срабатывает при движении мыши)
-async function handleWallDraw(pos) {
-    const grid = await getGridCoords(pos);
-    const cellKey = `${grid.x},${grid.y}`;
+// Просчет всех клеток внутри выделенной области (Drag-selection)
+async function processAreaDraw(p1, p2) {
+    const dpi = await OBR.scene.grid.getDpi();
+    
+    const minX = Math.min(p1.x, p2.x);
+    const maxX = Math.max(p1.x, p2.x);
+    const minY = Math.min(p1.y, p2.y);
+    const maxY = Math.max(p1.y, p2.y);
 
-    if (!sceneMetadata.walls.includes(cellKey)) {
-        sceneMetadata.walls.push(cellKey);
-        await drawVisualMarker(grid.x, grid.y, cellKey, "#111111", "СТЕНА", 0.8);
-        await OBR.scene.setMetadata({ [METADATA_KEY]: sceneMetadata });
+    const startGrid = { x: Math.floor(minX / dpi), y: Math.floor(minY / dpi) };
+    const endGrid = { x: Math.floor(maxX / dpi), y: Math.floor(maxY / dpi) };
+
+    for (let gx = startGrid.x; gx <= endGrid.x; gx++) {
+        for (let gy = startGrid.y; gy <= endGrid.y; gy++) {
+            const cellKey = `${gx},${gy}`;
+
+            if (currentTool === 'wall') {
+                if (!sceneMetadata.walls.includes(cellKey)) {
+                    sceneMetadata.walls.push(cellKey);
+                    await drawVisualMarker(gx, gy, cellKey, "#111111", "СТЕНА", 0.7);
+                }
+            } else if (currentTool === 'zone') {
+                const ceil = parseInt(document.getElementById('geo-ceiling').value) || 10;
+                const floor = parseInt(document.getElementById('geo-floor').value) || 0;
+                
+                sceneMetadata.zones[cellKey] = { ceiling: ceil, floor: floor };
+                await drawVisualMarker(gx, gy, cellKey, "#0055ff", `П:${ceil}/Пл:${floor}`, 0.4);
+            }
+        }
     }
-}
-
-// Рисование зон (Полы, Потолки, Ямы)
-async function handleZoneDraw(pos) {
-    const grid = await getGridCoords(pos);
-    const cellKey = `${grid.x},${grid.y}`;
-
-    const ceil = parseInt(document.getElementById('geo-ceiling').value) || 10;
-    const floor = parseInt(document.getElementById('geo-floor').value) || 0;
-
-    // Если кликнули по существующей кастомной зоне — удаляем её
-    if (sceneMetadata.zones[cellKey]) {
-        delete sceneMetadata.zones[cellKey];
-        await removeVisualMarker(cellKey);
-    } else {
-        sceneMetadata.zones[cellKey] = { ceiling: ceil, floor: floor };
-        let label = `П:${ceil}/Пл:${floor}`;
-        if (floor < 0) label = `ЯМА:${floor}`;
-        await drawVisualMarker(grid.x, grid.y, cellKey, "#0055ff", label, 0.4);
-    }
-
     await OBR.scene.setMetadata({ [METADATA_KEY]: sceneMetadata });
 }
 
-// Отрисовка служебных маркеров для ГМа
 async function drawVisualMarker(gx, gy, key, color, label, opacity) {
     const dpi = await OBR.scene.grid.getDpi();
     const allItems = await OBR.scene.items.getItems();
@@ -130,7 +126,7 @@ async function drawVisualMarker(gx, gy, key, color, label, opacity) {
         text: label,
         fontSize: 9,
         fillColor: "#ffffff",
-        position: { x: gx * dpi + 2, y: gy * dpi + (dpi / 2) - 5 },
+        position: { x: gx * dpi + 2, y: gy * dpi + (dpi / 2) - 4 },
         attachedTo: rect.id
     });
     text.metadata["com.fireball.calculator/marker-id"] = key;
@@ -138,18 +134,12 @@ async function drawVisualMarker(gx, gy, key, color, label, opacity) {
     await OBR.scene.items.addItems([rect, text]);
 }
 
-// Удаление маркера с карты
-async function removeVisualMarker(key) {
-    const allItems = await OBR.scene.items.getItems();
-    const toDelete = allItems.filter(i => i.metadata["com.fireball.calculator/marker-id"] === key).map(i => i.id);
-    if (toDelete.length > 0) await OBR.scene.items.deleteItems(toDelete);
-}
-
-// Инициализация каста фаербола
+// Запуск анимации взрыва
 async function startFireballCast() {
-    document.getElementById('status').innerText = "Выберите точку взрыва на карте...";
+    toggleTool(null);
+    document.getElementById('status').innerText = "Выберите эпицентр взрыва фаербола...";
     
-    const target = await OBR.interaction.selectTarget({ hint: "Кликните на клетку-эпицентр фаербола" });
+    const target = await OBR.interaction.selectTarget({ hint: "Кликните в точку детонации" });
     if (!target) {
         document.getElementById('status').innerText = "Каст отменен.";
         return;
@@ -158,27 +148,23 @@ async function startFireballCast() {
     const startGrid = await getGridCoords(target.position);
     const castH = parseInt(document.getElementById('cast-height').value) || 5;
 
-    document.getElementById('status').innerText = "Расчет траектории расширения газа...";
-    
-    // Получаем пошаговые слои для анимации распространения
+    document.getElementById('status').innerText = "Расчет объема фаербола...";
     const animationSteps = run3DFloodFillLayers(startGrid, castH);
     await animateExplosion(animationSteps);
 }
 
-// 3D Flood Fill, возвращающий массив шагов (волн распространения)
 function run3DFloodFillLayers(startGrid, castHeight) {
-    const TOTAL_VOLUME_BLOCKS = 268; // 33510 куб. футов / 125 (объем куба 5х5х5)
+    const TOTAL_VOLUME_BLOCKS = 268; // 33510 куб. футов / 125 футов объем куба
     const cellSizeInFt = 5;
     let usedBlocks = 0;
     
     let queue = [];
     let visited = new Set();
-    let steps = []; // Массив массивов координат для пошаговой анимации
+    let steps = [];
 
     const startKey = `${startGrid.x},${startGrid.y}`;
     let currentCeil = sceneMetadata.zones[startKey] ? sceneMetadata.zones[startKey].ceiling : 10;
     let currentFloor = sceneMetadata.zones[startKey] ? sceneMetadata.zones[startKey].floor : 0;
-
     let startZ = Math.floor(castHeight / cellSizeInFt);
 
     queue.push({ x: startGrid.x, y: startGrid.y, z: startZ, depth: 0 });
@@ -188,9 +174,7 @@ function run3DFloodFillLayers(startGrid, castHeight) {
         let current = queue.shift();
         usedBlocks++;
 
-        if (!steps[current.depth]) {
-            steps[current.depth] = [];
-        }
+        if (!steps[current.depth]) steps[current.depth] = [];
         steps[current.depth].push({ x: current.x, y: current.y });
 
         const directions = [
@@ -221,49 +205,38 @@ function run3DFloodFillLayers(startGrid, castHeight) {
             }
         }
     }
-    return steps.filter(step => step && step.length > 0);
+    return steps.filter(s => s && s.length > 0);
 }
 
-// Пошаговая плавная анимация взрыва пламени
 async function animateExplosion(steps) {
     const dpi = await OBR.scene.grid.getDpi();
-    let totalCellsRendered = 0;
+    let totalCells = 0;
 
     for (let i = 0; i < steps.length; i++) {
         const itemsToCreate = [];
-        const layer = steps[i];
-
-        for (let cell of layer) {
+        for (let cell of steps[i]) {
             const rect = OBR.item.createShape({
                 shapeType: "RECTANGLE",
                 width: dpi,
                 height: dpi,
                 fillColor: "#ff3300",
                 fillOpacity: 0.5,
-                strokeColor: "#ffcc00",
-                strokeWidth: 1.5,
-                position: { x: cell.x * dpi, y: cell.y * dpi },
-                attachedTo: "",
-                locked: false
+                strokeColor: "#ffaa00",
+                strokeWidth: 1,
+                position: { x: cell.x * dpi, y: cell.y * dpi }
             });
             rect.metadata["com.fireball.calculator/explosion-fire"] = true;
             itemsToCreate.push(rect);
-            totalCellsRendered++;
+            totalCells++;
         }
-
-        if (itemsToCreate.length > 0) {
-            await OBR.scene.items.addItems(itemsToCreate);
-        }
-        
-        // Задержка между волнами расширения газа в миллисекундах
-        await new Promise(resolve => setTimeout(resolve, 80));
+        if (itemsToCreate.length > 0) await OBR.scene.items.addItems(itemsToCreate);
+        await new Promise(r => setTimeout(r, 60)); // Скорость волны анимации распространения огня
     }
-
-    document.getElementById('status').innerText = `Бум! Задето уникальных 2D клеток: ${totalCellsRendered}`;
+    document.getElementById('status').innerText = `Взрыв завершен! Покрыто уникальных клеток: ${totalCells}`;
 }
 
-// Полная очистка сцены от огня и разметки геометрии
 async function clearAll() {
+    toggleTool(null);
     const allItems = await OBR.scene.items.getItems();
     const toDelete = allItems.filter(i => 
         i.metadata["com.fireball.calculator/marker-id"] || 
@@ -274,5 +247,5 @@ async function clearAll() {
     
     sceneMetadata = { walls: [], zones: {} };
     await OBR.scene.setMetadata({ [METADATA_KEY]: sceneMetadata });
-    document.getElementById('status').innerText = "Сцена полностью очищена.";
+    document.getElementById('status').innerText = "Карта полностью очищена.";
 }
