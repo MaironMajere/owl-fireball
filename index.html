@@ -2,74 +2,65 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>AD&D 2e Fireball Calculator</title>
+    <title>AD&D 2e Fireball Редактор</title>
     <style>
-        body {
-            font-family: sans-serif;
-            background: #242424;
-            color: #fff;
-            padding: 10px;
-            margin: 0;
-        }
-        h3 { margin-top: 0; color: #ff4500; text-align: center; }
-        .control-group {
-            margin-bottom: 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        label { font-size: 13px; }
-        input {
-            width: 70px;
-            background: #333;
-            border: 1px solid #555;
-            color: #fff;
-            padding: 4px;
-            border-radius: 4px;
-            text-align: center;
-        }
+        body { font-family: sans-serif; background: #242424; color: #fff; padding: 12px; margin: 0; }
+        h3 { margin: 0 0 10px 0; color: #ff4500; text-align: center; font-size: 16px; }
+        .section { background: #1a1a1a; padding: 8px; border-radius: 4px; margin-bottom: 10px; border: 1px solid #333; }
+        .section-title { font-size: 12px; text-transform: uppercase; color: #888; margin-bottom: 6px; font-weight: bold; }
+        .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
         button {
-            width: 100%;
-            padding: 8px;
-            background: #ff4500;
-            border: none;
-            color: white;
-            font-weight: bold;
-            border-radius: 4px;
-            cursor: pointer;
-            margin-top: 10px;
+            background: #333; border: 1px solid #555; color: white; padding: 6px;
+            border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold;
         }
-        button:hover { background: #e03e00; }
-        #output {
-            margin-top: 10px;
-            font-size: 12px;
-            color: #aaa;
-            text-align: center;
-        }
+        button:hover { background: #444; }
+        button.active { background: #ff4500; border-color: #ff6a00; }
+        .input-row { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-size: 12px; }
+        input { width: 50px; background: #222; border: 1px solid #444; color: #fff; padding: 3px; text-align: center; border-radius: 3px; }
+        .action-btn { width: 100%; background: #ff4500; margin-top: 6px; padding: 8px; font-size: 13px; }
+        .action-btn:hover { background: #e03e00; }
+        .danger-btn { background: #900; }
+        .danger-btn:hover { background: #b00; }
+        #status { margin-top: 8px; font-size: 11px; color: #00ffcc; text-align: center; min-height: 15px; }
     </style>
 </head>
 <body>
-    <h3>AD&D 2e Fireball</h3>
+    <h3>AD&D 2e Fireball 3D Pro</h3>
     
-    <div class="control-group">
-        <label>Высота потолка (футы):</label>
-        <input type="number" id="ceiling" value="10" min="1">
-    </div>
-    
-    <div class="control-group">
-        <label>Глубина пола/ям (футы):</label>
-        <input type="number" id="floor" value="0" min="0">
+    <div class="section">
+        <div class="section-title">1. Инструменты разметки сцены</div>
+        <div class="btn-grid">
+            <button id="tool-wall" onclick="setTool('wall')">Стена / Колонна</button>
+            <button id="tool-zone" onclick="setTool('zone')">Изменить Высоту</button>
+        </div>
+        
+        <div id="zone-options" style="display: none;">
+            <div class="input-row">
+                <label>Потолок (футы):</label>
+                <input type="number" id="geo-ceiling" value="10">
+            </div>
+            <div class="input-row">
+                <label>Глубина ямы (футы):</label>
+                <input type="number" id="geo-floor" value="0">
+            </div>
+        </div>
     </div>
 
-    <div class="control-group">
-        <label>Высота эпицентра (от пола):</label>
-        <input type="number" id="epicenter-height" value="5" min="0">
+    <div class="section">
+        <div class="section-title">2. Детонация</div>
+        <div class="input-row">
+            <label>Высота взрыва от пола (футы):</label>
+            <input type="number" id="cast-height" value="5">
+        </div>
+        <button class="action-btn" id="cast-btn">КАСТОВАТЬ ФАЕРБОЛ</button>
     </div>
 
-    <button id="calc-btn">Рассчитать и нарисовать</button>
-    <div id="output">Готов к детонации</div>
+    <div class="section" style="border-color: #500;">
+        <button class="action-btn danger-btn" onclick="clearAll()">Очистить все эффекты и разметку</button>
+    </div>
 
-    <!-- Подключаем SDK Оулбира и наш скрипт логики -->
+    <div id="status">Инициализация...</div>
+
     <script src="https://unpkg.com/@owlbear-rodeo/sdk"></script>
     <script src="script.js"></script>
 </body>
