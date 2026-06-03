@@ -9,10 +9,8 @@
     "title": "AD&D Fireball",
     "icon": "/icon.svg",
     "location": "SELECT",
-    "popover": {
-      "width": 320,
-      "height": 400,
-      "url": "/index.html"
-    }
+    "popover": "/index.html",
+    "width": 320,
+    "height": 400
   }
 }
