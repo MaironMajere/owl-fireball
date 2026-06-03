@@ -1,0 +1,13 @@
+{
+  "name": "AD&D 2e Fireball Calculator",
+  "version": "1.0.0",
+  "manifest_version": 1,
+  "icon": "/icon.svg",
+  "background_color": "#242424",
+  "action": {
+    "title": "AD&D Fireball",
+    "icon": "/icon.svg",
+    "location": "SELECT",
+    "repository": "http://127.0.0.1:8000/index.html"
+  }
+}
