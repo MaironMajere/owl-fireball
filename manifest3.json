@@ -1,6 +1,6 @@
 {
-  "name": "AD&D 2e Fireball Calculator",
-  "version": "1.0.1",
+  "name": "AD&D 2e Fireball 3D Pro",
+  "version": "1.2.0",
   "manifest_version": 1,
   "icon": "https://maironmajere.github.io/owl-fireball/icon.svg",
   "action": {
@@ -8,6 +8,6 @@
     "icon": "https://maironmajere.github.io/owl-fireball/icon.svg",
     "popover": "https://maironmajere.github.io/owl-fireball/index.html",
     "width": 320,
-    "height": 400
+    "height": 450
   }
 }
