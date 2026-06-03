@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "manifest_version": 1,
   "icon": "https://maironmajere.github.io/owl-fireball/icon.svg",
-  "background": "background.js",
   "action": {
     "title": "AD&D Fireball",
     "icon": "https://maironmajere.github.io/owl-fireball/icon.svg",
