@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "manifest_version": 1,
   "icon": "/icon.svg",
-  "repository": "https://maironmajere.github.io/owl-fireball/",
   "action": {
     "title": "AD&D Fireball",
     "icon": "/icon.svg",
