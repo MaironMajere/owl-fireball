@@ -4,5 +4,14 @@
   "manifest_version": 1,
   "icon": "https://maironmajere.github.io/owl-fireball/icon.svg",
   "background_color": "#242424",
-  "action": "https://maironmajere.github.io/owl-fireball/index.html"
+  "action": {
+    "title": "AD&D Fireball",
+    "icon": "https://maironmajere.github.io/owl-fireball/icon.svg",
+    "location": "SELECT",
+    "page": {
+      "url": "https://maironmajere.github.io/owl-fireball/index.html",
+      "width": 320,
+      "height": 400
+    }
+  }
 }
